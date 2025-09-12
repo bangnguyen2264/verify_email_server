@@ -28,6 +28,9 @@ public class UserService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     @Value("${WEATHER_API_KEY}")
     private String WEATHER_API_KEY;
+    @Value("${WEB_URL}")
+    private String WEB_URL;
+
     public void sendActivationEmail(String email, String location) throws MessagingException {
         boolean checkExist = userRepository.existsByEmail(email);
         if (checkExist) {
@@ -51,7 +54,7 @@ public class UserService {
     }
 
     private void sendActivationEmailContent(String email, String token) throws MessagingException {
-        String activationLink = "http://localhost:55769/verify?token=" + token;
+        String activationLink = WEB_URL + "/verify?token=" + token;
 
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true);
@@ -78,12 +81,12 @@ public class UserService {
         throw new IllegalArgumentException("Invalid activation token or user was activated");
     }
 
-    @Scheduled(cron = "0 * * * * *",zone = "Asia/Ho_Chi_Minh")
+    @Scheduled(cron = "0 0 7 * * *", zone = "Asia/Ho_Chi_Minh")
     public void sendWeatherEmailsAutomatically() {
         List<Users> activeUsers = userRepository.findByActivatedTrue();
         for (Users user : activeUsers) {
             try {
-                if (user.getLocation() != null ) {
+                if (user.getLocation() != null) {
                     sendWeatherEmail(user.getEmail(), user.getLocation());
                     System.out.println("Weather email sent to: " + user.getEmail() + " at " + new java.util.Date());
                 }
