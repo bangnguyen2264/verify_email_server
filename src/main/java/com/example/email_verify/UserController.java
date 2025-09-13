@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/verify")
 public class UserController {
     private final UserService userService;
+    private final MailService mailService;
 
     @PostMapping("/send-activation")
     public String sendActivationEmail(@RequestParam String email, @RequestParam String location) throws MessagingException {
@@ -24,5 +25,10 @@ public class UserController {
     @GetMapping("/activate")
     public ResponseEntity activateAccount(@RequestParam String token) {
         return ResponseEntity.ok(userService.activateAccount(token));
+    }
+    @GetMapping("/send")
+    public ResponseEntity sendEmail() throws MessagingException {
+        mailService.sendExampleMail();
+        return ResponseEntity.ok().build();
     }
 }

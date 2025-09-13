@@ -1,16 +1,11 @@
 package com.example.email_verify;
 
-import com.example.email_verify.UserRepository;
-import com.example.email_verify.Users;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -22,20 +17,23 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserService {
 
-    private final JavaMailSender mailSender;
     private final UserRepository userRepository;
+    private final MailService mailService; // gọi lại mail service
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
+
     @Value("${WEATHER_API_KEY}")
     private String WEATHER_API_KEY;
+
     @Value("${WEB_URL}")
     private String WEB_URL;
 
+    // 👉 Gửi mail kích hoạt tài khoản
     public void sendActivationEmail(String email, String location) throws MessagingException {
-        boolean checkExist = userRepository.existsByEmail(email);
-        if (checkExist) {
+        if (userRepository.existsByEmail(email)) {
             throw new MessagingException("Email already exists");
         }
+
         String token = UUID.randomUUID().toString();
 
         Users user = new Users();
@@ -45,31 +43,22 @@ public class UserService {
         user.setLocation(location);
         userRepository.save(user);
 
-        sendActivationEmailContent(email, token);
+        String activationLink = WEB_URL + "/verify?token=" + token;
+        String htmlBody = "<h3>Hello!</h3>" +
+                "<p>Please click the link below to activate your account:</p>" +
+                "<a href='" + activationLink + "'>Activate Account</a>";
+
+        mailService.sendEmail(email, "Activate Your Account", htmlBody);
     }
 
-    public void unSubscribetionEmail(String email) throws MessagingException {
-        Users users = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+    // 👉 Unsubscribe
+    public void unSubscribetionEmail(String email) {
+        Users users = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
         userRepository.delete(users);
     }
 
-    private void sendActivationEmailContent(String email, String token) throws MessagingException {
-        String activationLink = WEB_URL + "/verify?token=" + token;
-
-        MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true);
-        helper.setTo(email);
-        helper.setSubject("Activate Your Account");
-        helper.setText(
-                "<h3>Hello!</h3>" +
-                        "<p>Please click the link below to activate your account:</p>" +
-                        "<a href='" + activationLink + "'>Activate Account</a>",
-                true
-        );
-
-        mailSender.send(message);
-    }
-
+    // 👉 Kích hoạt tài khoản
     public boolean activateAccount(String token) {
         Users user = userRepository.findByActivationToken(token);
         if (user != null && !user.isActivated()) {
@@ -81,6 +70,7 @@ public class UserService {
         throw new IllegalArgumentException("Invalid activation token or user was activated");
     }
 
+    // 👉 Cron job gửi mail thời tiết tự động
     @Scheduled(cron = "0 0 7 * * *", zone = "Asia/Ho_Chi_Minh")
     public void sendWeatherEmailsAutomatically() {
         List<Users> activeUsers = userRepository.findByActivatedTrue();
@@ -90,14 +80,14 @@ public class UserService {
                     sendWeatherEmail(user.getEmail(), user.getLocation());
                     System.out.println("Weather email sent to: " + user.getEmail() + " at " + new java.util.Date());
                 }
-            } catch (MessagingException e) {
+            } catch (Exception e) {
                 System.err.println("Error sending weather email to " + user.getEmail() + ": " + e.getMessage());
             }
         }
     }
 
-    private void sendWeatherEmail(String email, String location) throws MessagingException {
-        // Gọi WeatherAPI
+    // 👉 Gửi mail thời tiết
+    private void sendWeatherEmail(String email, String location) {
         String url = "https://api.weatherapi.com/v1/forecast.json?q=" + location + "&days=1&key=" + WEATHER_API_KEY;
         ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
         String weatherData = response.getBody();
@@ -107,7 +97,6 @@ public class UserService {
         try {
             JsonNode root = objectMapper.readTree(weatherData);
 
-            // Thông tin địa điểm
             JsonNode loc = root.get("location");
             emailContent.append("<h2>Weather Report - ").append(loc.get("name").asText())
                     .append(", ").append(loc.get("region").asText())
@@ -115,7 +104,6 @@ public class UserService {
                     .append("</h2>");
             emailContent.append("<p><b>Local time:</b> ").append(loc.get("localtime").asText()).append("</p>");
 
-            // Thông tin thời tiết hiện tại
             JsonNode current = root.get("current");
             emailContent.append("<h3>Current Weather</h3>");
             emailContent.append("<ul>");
@@ -128,19 +116,10 @@ public class UserService {
             emailContent.append("<li>UV Index: ").append(current.get("uv").asText()).append("</li>");
             emailContent.append("</ul>");
 
-
         } catch (Exception e) {
             emailContent.append("<p>Error parsing weather data: ").append(e.getMessage()).append("</p>");
         }
 
-        // Gửi email
-        MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true);
-        helper.setTo(email);
-        helper.setSubject("Daily Weather Forecast");
-        helper.setText(emailContent.toString(), true);
-
-        mailSender.send(message);
+        mailService.sendEmail(email, "Daily Weather Forecast", emailContent.toString());
     }
-
 }

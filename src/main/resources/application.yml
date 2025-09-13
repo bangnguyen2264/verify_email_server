@@ -25,14 +25,20 @@ spring:
     database: postgresql
     database-platform: org.hibernate.dialect.PostgreSQLDialect
 
-  mail:
-    host: smtp.office365.com
-    port: 587
-    username: ngtbang2264.dev@gmail.com
-    password: ${MAIL_PASSWO RD_SERVER}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
+#  mail:
+#    host: smtp.gmail.com
+#    port: 587
+#    secure: false
+#    username: ngtbang2264.dev@gmail.com
+#    password: ${MAIL_PASSWO RD_SERVER}
+#    properties:
+#      mail:
+#        smtp:
+#          auth: true
+#          starttls:
+#            enable: true
+
+resend:
+  api-key: ${MAIL_PASSWORD_SERVER}
+  from: "G-Weather Forecase <onboarding@resend.dev>"  # đổi thành domain/email verified
+

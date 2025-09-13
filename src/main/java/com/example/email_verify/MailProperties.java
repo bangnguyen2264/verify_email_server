@@ -9,12 +9,14 @@ import java.util.Map;
 
 @Data
 @Component
-@ConfigurationProperties(prefix = "spring.mail")
+@ConfigurationProperties(prefix = "resend")
 public class MailProperties {
-    private String host;
-    private int port;
-    private String username;
-    private String password;
-
-    private final Map<String, String> properties = new HashMap<>();
+    //    private String host;
+//    private int port;
+//    private String username;
+//    private String password;
+//
+//    private final Map<String, String> properties = new HashMap<>();
+    private String apiKey;
+    private String from;
 }
