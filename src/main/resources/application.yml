@@ -40,5 +40,4 @@ spring:
 
 resend:
   api-key: ${MAIL_PASSWORD_SERVER}
-  from: "G-Weather Forecase <onboarding@resend.dev>"  # đổi thành domain/email verified
-
+  from: "G-Weather Forecast <no-reply@weather-website-e28f5.web.app>"
